@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HK Rental Market Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+.header { background: linear-gradient(135deg, #1a365d 0%, #2d6fa5 100%); color: white; padding: 32px 24px 20px; text-align: center; }
+.header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.header p { font-size: 14px; opacity: 0.8; }
+.header .stats { display: flex; justify-content: center; gap: 32px; margin-top: 14px; flex-wrap: wrap; }
+.header .stat-item { text-align: center; }
+.header .stat-item .num { font-size: 24px; font-weight: 700; }
+.header .stat-item .label { font-size: 12px; opacity: 0.7; }
+.nav { background: white; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: center; gap: 4px; padding: 0 16px; position: sticky; top: 0; z-index: 100; overflow-x: auto; }
+.nav a { display: inline-block; padding: 12px 18px; font-size: 13px; font-weight: 500; color: #666; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; cursor: pointer; }
+.nav a:hover { color: #1a365d; background: #f8fafc; }
+.nav a.active { color: #1a365d; border-bottom-color: #2d6fa5; font-weight: 600; }
+.container { max-width: 1300px; margin: 0 auto; padding: 20px; }
+.section { overflow: hidden; height: 0; opacity: 0; transition: opacity 0.3s; }
+.section.active { height: auto; opacity: 1; }
+.row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); flex: 1; min-width: 300px; }
+.card h3 { font-size: 15px; color: #666; margin-bottom: 12px; font-weight: 600; }
+.chart { width: 100%; height: 380px; }
+.chart-tall { height: 460px; }
+.filter-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.filter-bar label { font-size: 13px; color: #666; font-weight: 500; }
+.filter-bar select { padding: 6px 12px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 14px; background: white; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #f8f9fa; padding: 10px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e5e7eb; cursor: pointer; }
+th:hover { background: #eef1f5; }
+td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+tr:hover { background: #fafbfc; }
+.table-wrap { max-height: 400px; overflow-y: auto; }
+.region-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.region-hk { background: #dbeafe; color: #1e40af; }
+.region-kl { background: #fce7f3; color: #9d174d; }
+.region-nt { background: #d1fae5; color: #065f46; }
+.kpi { flex: 1; min-width: 180px; text-align: center; padding: 16px; border-radius: 8px; background: #f8fafc; }
+.kpi .val { font-size: 22px; font-weight: 700; }
+.kpi .lbl { font-size: 12px; color: #888; margin-top: 2px; }
+.footer { text-align: center; padding: 24px; font-size: 13px; color: #999; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hong Kong Rental Market Dashboard</h1>
+  <p>Analyzing 4,455 rental listings from 28Hse.com across 82 districts</p>
+  <div class="stats">
+    <div class="stat-item"><div class="num">4,455</div><div class="label">Total Listings</div></div>
+    <div class="stat-item"><div class="num">82</div><div class="label">Districts</div></div>
+    <div class="stat-item"><div class="num">3</div><div class="label">Regions</div></div>
+  </div>
+</div>
+
+<div class="nav">
+  <a class="active" onclick="switchSection('overview', this)">Overview</a>
+  <a onclick="switchSection('price', this)">Price Analysis</a>
+  <a onclick="switchSection('layout', this)">Layout &amp; Floor</a>
+  <a onclick="switchSection('data', this)">Data Table</a>
+</div>
+
+<div class="container">
+
+<div id="section-overview" class="section active">
+  <div class="row">
+    <div class="kpi"><div class="val">$18,800</div><div class="lbl">Hong Kong Island &middot; Median</div></div>
+    <div class="kpi"><div class="val">$18,000</div><div class="lbl">Kowloon &middot; Median</div></div>
+    <div class="kpi"><div class="val">$17,000</div><div class="lbl">New Territories &middot; Median</div></div>
+  </div>
+  <div class="row">
+    <div class="card">
+      <h3>Price Distribution by Region</h3>
+      <div id="boxChart" class="chart"></div>
+    </div>
+    <div class="card">
+      <h3>Price per sqft by Region</h3>
+      <div id="ppsChart" class="chart"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Layout Distribution</h3>
+    <div id="layoutChart" class="chart" style="height:300px;"></div>
+  </div>
+</div>
+
+<div id="section-price" class="section">
+  <div class="card">
+    <h3>District Price Comparison</h3>
+    <div class="filter-bar">
+      <label>Region:</label>
+      <select id="regionFilter" onchange="updateDistrictChart()">
+        <option value="All">All Regions</option>
+        <option value="Hong Kong Island">Hong Kong Island</option>
+        <option value="Kowloon">Kowloon</option>
+        <option value="New Territories">New Territories</option>
+      </select>
+      <label>Sort by:</label>
+      <select id="sortFilter" onchange="updateDistrictChart()">
+        <option value="median">Median Price</option>
+        <option value="pps">Price per sqft</option>
+      </select>
+    </div>
+    <div id="districtChart" class="chart chart-tall"></div>
+  </div>
+</div>
+
+<div id="section-layout" class="section">
+  <div class="row">
+    <div class="card">
+      <h3>Layout Distribution</h3>
+      <div id="layoutChart2" class="chart"></div>
+    </div>
+    <div class="card">
+      <h3>Floor Level vs Price</h3>
+      <div id="floorChart" class="chart"></div>
+    </div>
+  </div>
+</div>
+
+<div id="section-data" class="section">
+  <div class="card">
+    <h3>District Data</h3>
+    <p style="font-size:13px;color:#888;margin-bottom:12px;">Click column headers to sort</p>
+    <div class="table-wrap" id="tableContainer"></div>
+  </div>
+</div>
+
+</div>
+
+<div class="footer">
+  Built by Liang Xi &middot; Data sourced from 28Hse.com &middot; Snapshot: June 20, 2026 &middot; Built with ECharts
+</div>
+
+<script>
+const DATA = {"meta": {"source": "28Hse.com", "scraped_at": "2026-06-20", "total_listings": 4455, "districts_covered": 82}, "region_summary": {"Hong Kong Island": {"count": 868, "price": {"min": 2600.0, "max": 388000.0, "median": 18800.0, "mean": 22864.2, "count": 868}, "size": {"min": 46.0, "max": 3537.0, "median": 343.0, "mean": 404.2, "count": 868}, "price_per_sqft": {"min": 4.5, "max": 514.7, "median": 56.7, "mean": 59.1, "count": 868}}, "Kowloon": {"count": 1689, "price": {"min": 1800.0, "max": 330000.0, "median": 18000.0, "mean": 26585.6, "count": 1689}, "size": {"min": 40.0, "max": 4386.0, "median": 374.0, "mean": 484.0, "count": 1689}, "price_per_sqft": {"min": 2.6, "max": 184.0, "median": 52.3, "mean": 53.0, "count": 1689}}, "New Territories": {"count": 1799, "price": {"min": 1800.0, "max": 240000.0, "median": 17000.0, "mean": 21467.7, "count": 1799}, "size": {"min": 50.0, "max": 4500.0, "median": 493.0, "mean": 598.9, "count": 1799}, "price_per_sqft": {"min": 5.3, "max": 108.3, "median": 37.2, "mean": 37.6, "count": 1799}}}, "district_summary": [{"district": "上水", "region": "New Territories", "count": 55, "price_mean": 13174.7, "price_median": 11500.0, "price_min": 4000.0, "price_max": 55000.0, "size_mean": 627.2, "price_per_sqft_mean": 20.5}, {"district": "上環", "region": "Hong Kong Island", "count": 49, "price_mean": 22624.9, "price_median": 23000.0, "price_min": 4600.0, "price_max": 52000.0, "size_mean": 368.7, "price_per_sqft_mean": 65.2}, {"district": "中半山", "region": "Hong Kong Island", "count": 4, "price_mean": 23025.0, "price_median": 23800.0, "price_min": 17000.0, "price_max": 30300.0, "size_mean": 267.5, "price_per_sqft_mean": 85.8}, {"district": "中環", "region": "Hong Kong Island", "count": 33, "price_mean": 29890.5, "price_median": 29000.0, "price_min": 9800.0, "price_max": 48888.0, "size_mean": 390.1, "price_per_sqft_mean": 78.9}, {"district": "九龍城", "region": "Kowloon", "count": 39, "price_mean": 16717.9, "price_median": 16000.0, "price_min": 4800.0, "price_max": 34800.0, "size_mean": 316.3, "price_per_sqft_mean": 55.5}, {"district": "九龍塘", "region": "Kowloon", "count": 22, "price_mean": 58131.8, "price_median": 55000.0, "price_min": 11800.0, "price_max": 148000.0, "size_mean": 1209.2, "price_per_sqft_mean": 47.9}, {"district": "九龍灣", "region": "Kowloon", "count": 7, "price_mean": 15785.7, "price_median": 14900.0, "price_min": 7500.0, "price_max": 23500.0, "size_mean": 397.6, "price_per_sqft_mean": 41.9}, {"district": "九龍站", "region": "Kowloon", "count": 111, "price_mean": 70864.9, "price_median": 55000.0, "price_min": 29000.0, "price_max": 180000.0, "size_mean": 1026.0, "price_per_sqft_mean": 68.2}, {"district": "佐敦", "region": "Kowloon", "count": 83, "price_mean": 12347.1, "price_median": 9000.0, "price_min": 2980.0, "price_max": 40000.0, "size_mean": 265.7, "price_per_sqft_mean": 53.0}, {"district": "何文田", "region": "Kowloon", "count": 105, "price_mean": 46120.4, "price_median": 32000.0, "price_min": 2300.0, "price_max": 280000.0, "size_mean": 787.2, "price_per_sqft_mean": 57.1}, {"district": "元朗", "region": "New Territories", "count": 203, "price_mean": 15449.9, "price_median": 13500.0, "price_min": 1800.0, "price_max": 59800.0, "size_mean": 597.8, "price_per_sqft_mean": 28.0}, {"district": "北角", "region": "Hong Kong Island", "count": 95, "price_mean": 18400.4, "price_median": 16000.0, "price_min": 6320.0, "price_max": 68000.0, "size_mean": 354.9, "price_per_sqft_mean": 56.3}, {"district": "北角半山", "region": "Hong Kong Island", "count": 4, "price_mean": 56000.0, "price_median": 60000.0, "price_min": 42000.0, "price_max": 80000.0, "size_mean": 1229.8, "price_per_sqft_mean": 48.5}, {"district": "南大嶼山", "region": "New Territories", "count": 4, "price_mean": 25875.0, "price_median": 36000.0, "price_min": 12000.0, "price_max": 43000.0, "size_mean": 1269.0, "price_per_sqft_mean": 23.7}, {"district": "南昌", "region": "Kowloon", "count": 30, "price_mean": 32176.7, "price_median": 23500.0, "price_min": 17000.0, "price_max": 82800.0, "size_mean": 533.8, "price_per_sqft_mean": 63.3}, {"district": "又一村", "region": "Kowloon", "count": 6, "price_mean": 42833.3, "price_median": 43000.0, "price_min": 33000.0, "price_max": 60000.0, "size_mean": 904.0, "price_per_sqft_mean": 49.2}, {"district": "啟德", "region": "Kowloon", "count": 167, "price_mean": 35558.0, "price_median": 22800.0, "price_min": 4900.0, "price_max": 195000.0, "size_mean": 539.4, "price_per_sqft_mean": 59.0}, {"district": "土瓜灣", "region": "Unknown", "count": 78, "price_mean": 16793.4, "price_median": 15300.0, "price_min": 5600.0, "price_max": 33800.0, "size_mean": 376.6, "price_per_sqft_mean": 46.0}, {"district": "坑口", "region": "New Territories", "count": 16, "price_mean": 19437.5, "price_median": 20000.0, "price_min": 8400.0, "price_max": 26000.0, "size_mean": 474.4, "price_per_sqft_mean": 41.4}, {"district": "堅尼地城", "region": "Hong Kong Island", "count": 50, "price_mean": 23636.0, "price_median": 21000.0, "price_min": 11500.0, "price_max": 47000.0, "size_mean": 389.8, "price_per_sqft_mean": 62.8}, {"district": "大圍", "region": "New Territories", "count": 146, "price_mean": 27847.7, "price_median": 27500.0, "price_min": 5000.0, "price_max": 128000.0, "size_mean": 572.8, "price_per_sqft_mean": 51.2}, {"district": "大坑", "region": "Hong Kong Island", "count": 18, "price_mean": 50400.0, "price_median": 27000.0, "price_min": 10000.0, "price_max": 300000.0, "size_mean": 782.2, "price_per_sqft_mean": 58.7}, {"district": "大埔", "region": "New Territories", "count": 73, "price_mean": 20160.0, "price_median": 16800.0, "price_min": 3800.0, "price_max": 96800.0, "size_mean": 583.6, "price_per_sqft_mean": 38.9}, {"district": "大窩口", "region": "New Territories", "count": 5, "price_mean": 13280.0, "price_median": 11800.0, "price_min": 9500.0, "price_max": 18300.0, "size_mean": 560.0, "price_per_sqft_mean": 25.1}, {"district": "大角咀", "region": "Kowloon", "count": 78, "price_mean": 16009.6, "price_median": 16500.0, "price_min": 3500.0, "price_max": 35000.0, "size_mean": 315.7, "price_per_sqft_mean": 52.4}, {"district": "天后", "region": "Hong Kong Island", "count": 22, "price_mean": 18209.1, "price_median": 15800.0, "price_min": 6600.0, "price_max": 60000.0, "size_mean": 334.4, "price_per_sqft_mean": 56.0}, {"district": "天水圍", "region": "New Territories", "count": 61, "price_mean": 13912.6, "price_median": 13500.0, "price_min": 4800.0, "price_max": 26000.0, "size_mean": 510.0, "price_per_sqft_mean": 29.4}, {"district": "太古城", "region": "Unknown", "count": 19, "price_mean": 38710.5, "price_median": 35000.0, "price_min": 23500.0, "price_max": 60000.0, "size_mean": 749.8, "price_per_sqft_mean": 50.8}, {"district": "太和", "region": "New Territories", "count": 3, "price_mean": 19866.7, "price_median": 16000.0, "price_min": 13600.0, "price_max": 30000.0, "size_mean": 547.7, "price_per_sqft_mean": 38.5}, {"district": "太子", "region": "Kowloon", "count": 39, "price_mean": 12496.2, "price_median": 8600.0, "price_min": 3000.0, "price_max": 42000.0, "size_mean": 345.9, "price_per_sqft_mean": 43.2}, {"district": "奧運", "region": "Kowloon", "count": 74, "price_mean": 30895.9, "price_median": 26500.0, "price_min": 12000.0, "price_max": 108800.0, "size_mean": 585.0, "price_per_sqft_mean": 52.3}, {"district": "寶琳", "region": "New Territories", "count": 16, "price_mean": 19131.2, "price_median": 19500.0, "price_min": 15000.0, "price_max": 25000.0, "size_mean": 452.9, "price_per_sqft_mean": 42.8}, {"district": "將軍澳", "region": "New Territories", "count": 21, "price_mean": 33328.6, "price_median": 26800.0, "price_min": 5900.0, "price_max": 106000.0, "size_mean": 723.5, "price_per_sqft_mean": 46.0}, {"district": "尖沙咀", "region": "Kowloon", "count": 146, "price_mean": 23216.0, "price_median": 13800.0, "price_min": 2600.0, "price_max": 98000.0, "size_mean": 449.3, "price_per_sqft_mean": 52.4}, {"district": "屯門", "region": "New Territories", "count": 113, "price_mean": 12705.1, "price_median": 12800.0, "price_min": 3200.0, "price_max": 42000.0, "size_mean": 382.3, "price_per_sqft_mean": 36.0}, {"district": "屯門(青山公路)", "region": "New Territories", "count": 81, "price_mean": 32234.6, "price_median": 15800.0, "price_min": 4300.0, "price_max": 138000.0, "size_mean": 900.7, "price_per_sqft_mean": 35.1}, {"district": "康城", "region": "New Territories", "count": 88, "price_mean": 19492.8, "price_median": 18500.0, "price_min": 4800.0, "price_max": 34800.0, "size_mean": 494.4, "price_per_sqft_mean": 42.8}, {"district": "新蒲崗", "region": "Kowloon", "count": 33, "price_mean": 8387.9, "price_median": 6500.0, "price_min": 4100.0, "price_max": 30000.0, "size_mean": 214.8, "price_per_sqft_mean": 40.6}, {"district": "旺角", "region": "Kowloon", "count": 115, "price_mean": 12415.1, "price_median": 10800.0, "price_min": 2000.0, "price_max": 28800.0, "size_mean": 254.7, "price_per_sqft_mean": 50.7}, {"district": "東涌", "region": "New Territories", "count": 224, "price_mean": 21450.9, "price_median": 19500.0, "price_min": 7300.0, "price_max": 66000.0, "size_mean": 671.7, "price_per_sqft_mean": 32.7}, {"district": "柴灣", "region": "Hong Kong Island", "count": 7, "price_mean": 13014.3, "price_median": 13000.0, "price_min": 9000.0, "price_max": 16500.0, "size_mean": 331.6, "price_per_sqft_mean": 39.4}, {"district": "沙田", "region": "New Territories", "count": 116, "price_mean": 21537.9, "price_median": 16500.0, "price_min": 5000.0, "price_max": 98000.0, "size_mean": 495.4, "price_per_sqft_mean": 46.9}, {"district": "油塘", "region": "Kowloon", "count": 62, "price_mean": 19690.3, "price_median": 18000.0, "price_min": 12000.0, "price_max": 42000.0, "size_mean": 446.7, "price_per_sqft_mean": 46.8}, {"district": "油麻地", "region": "Kowloon", "count": 67, "price_mean": 18798.5, "price_median": 14000.0, "price_min": 2600.0, "price_max": 68800.0, "size_mean": 414.2, "price_per_sqft_mean": 47.4}, {"district": "洪水橋", "region": "New Territories", "count": 3, "price_mean": 24500.0, "price_median": 25000.0, "price_min": 9500.0, "price_max": 39000.0, "size_mean": 593.0, "price_per_sqft_mean": 42.6}, {"district": "深水埗", "region": "Kowloon", "count": 102, "price_mean": 12220.6, "price_median": 12000.0, "price_min": 1800.0, "price_max": 35000.0, "size_mean": 277.1, "price_per_sqft_mean": 45.5}, {"district": "清水灣", "region": "New Territories", "count": 5, "price_mean": 57200.0, "price_median": 65000.0, "price_min": 13000.0, "price_max": 85000.0, "size_mean": 1915.8, "price_per_sqft_mean": 34.0}, {"district": "灣仔", "region": "Hong Kong Island", "count": 140, "price_mean": 20304.1, "price_median": 18000.0, "price_min": 3008.0, "price_max": 77200.0, "size_mean": 369.8, "price_per_sqft_mean": 58.9}, {"district": "火炭", "region": "New Territories", "count": 38, "price_mean": 35794.2, "price_median": 26000.0, "price_min": 16000.0, "price_max": 120000.0, "size_mean": 796.6, "price_per_sqft_mean": 48.3}, {"district": "炮台山", "region": "Hong Kong Island", "count": 27, "price_mean": 15660.7, "price_median": 14300.0, "price_min": 7120.0, "price_max": 28000.0, "size_mean": 324.3, "price_per_sqft_mean": 57.7}, {"district": "牛池灣", "region": "Kowloon", "count": 4, "price_mean": 24525.0, "price_median": 24800.0, "price_min": 21000.0, "price_max": 29500.0, "size_mean": 598.5, "price_per_sqft_mean": 41.3}, {"district": "白石角", "region": "New Territories", "count": 43, "price_mean": 43286.0, "price_median": 27500.0, "price_min": 13000.0, "price_max": 240000.0, "size_mean": 1013.8, "price_per_sqft_mean": 41.8}, {"district": "石塘咀", "region": "Hong Kong Island", "count": 7, "price_mean": 18700.0, "price_median": 16800.0, "price_min": 8800.0, "price_max": 31000.0, "size_mean": 357.6, "price_per_sqft_mean": 55.3}, {"district": "石硤尾", "region": "Kowloon", "count": 4, "price_mean": 99525.0, "price_median": 38800.0, "price_min": 13300.0, "price_max": 330000.0, "size_mean": 1427.2, "price_per_sqft_mean": 57.2}, {"district": "筲箕灣", "region": "Hong Kong Island", "count": 38, "price_mean": 17105.3, "price_median": 15800.0, "price_min": 5500.0, "price_max": 27500.0, "size_mean": 352.9, "price_per_sqft_mean": 48.7}, {"district": "粉嶺", "region": "New Territories", "count": 50, "price_mean": 12257.6, "price_median": 11800.0, "price_min": 3000.0, "price_max": 35000.0, "size_mean": 617.1, "price_per_sqft_mean": 23.2}, {"district": "紅磡", "region": "Kowloon", "count": 151, "price_mean": 22341.7, "price_median": 18000.0, "price_min": 4500.0, "price_max": 80000.0, "size_mean": 435.8, "price_per_sqft_mean": 54.2}, {"district": "美孚", "region": "Kowloon", "count": 9, "price_mean": 24111.1, "price_median": 26500.0, "price_min": 18000.0, "price_max": 32000.0, "size_mean": 594.8, "price_per_sqft_mean": 41.1}, {"district": "荃灣", "region": "New Territories", "count": 213, "price_mean": 22384.4, "price_median": 19500.0, "price_min": 2500.0, "price_max": 60000.0, "size_mean": 543.7, "price_per_sqft_mean": 41.9}, {"district": "荔枝角", "region": "Kowloon", "count": 11, "price_mean": 23981.8, "price_median": 24000.0, "price_min": 9000.0, "price_max": 32000.0, "size_mean": 515.1, "price_per_sqft_mean": 47.4}, {"district": "葵涌", "region": "New Territories", "count": 22, "price_mean": 14404.5, "price_median": 14800.0, "price_min": 6500.0, "price_max": 34000.0, "size_mean": 401.4, "price_per_sqft_mean": 37.8}, {"district": "薄扶林", "region": "Hong Kong Island", "count": 11, "price_mean": 24645.5, "price_median": 22000.0, "price_min": 16500.0, "price_max": 63000.0, "size_mean": 617.7, "price_per_sqft_mean": 39.1}, {"district": "藍田", "region": "Kowloon", "count": 11, "price_mean": 18618.2, "price_median": 17500.0, "price_min": 14200.0, "price_max": 26000.0, "size_mean": 484.9, "price_per_sqft_mean": 39.2}, {"district": "西半山", "region": "Hong Kong Island", "count": 17, "price_mean": 45494.1, "price_median": 42000.0, "price_min": 11900.0, "price_max": 150000.0, "size_mean": 687.5, "price_per_sqft_mean": 66.4}, {"district": "西灣河", "region": "Hong Kong Island", "count": 39, "price_mean": 17723.1, "price_median": 16000.0, "price_min": 5500.0, "price_max": 68000.0, "size_mean": 316.4, "price_per_sqft_mean": 58.8}, {"district": "西營盤", "region": "Hong Kong Island", "count": 69, "price_mean": 22315.8, "price_median": 20000.0, "price_min": 8000.0, "price_max": 105000.0, "size_mean": 332.5, "price_per_sqft_mean": 70.1}, {"district": "西貢", "region": "New Territories", "count": 6, "price_mean": 46666.7, "price_median": 50000.0, "price_min": 12000.0, "price_max": 98000.0, "size_mean": 1276.0, "price_per_sqft_mean": 37.3}, {"district": "觀塘", "region": "Kowloon", "count": 44, "price_mean": 15770.5, "price_median": 16500.0, "price_min": 4600.0, "price_max": 39800.0, "size_mean": 424.2, "price_per_sqft_mean": 38.3}, {"district": "調景嶺", "region": "New Territories", "count": 5, "price_mean": 26159.8, "price_median": 24000.0, "price_min": 21000.0, "price_max": 33999.0, "size_mean": 636.2, "price_per_sqft_mean": 41.5}, {"district": "跑馬地", "region": "Hong Kong Island", "count": 27, "price_mean": 32811.1, "price_median": 27000.0, "price_min": 8500.0, "price_max": 80000.0, "size_mean": 614.4, "price_per_sqft_mean": 58.5}, {"district": "銅鑼灣", "region": "Hong Kong Island", "count": 111, "price_mean": 16449.4, "price_median": 11200.0, "price_min": 3180.0, "price_max": 88000.0, "size_mean": 319.4, "price_per_sqft_mean": 57.0}, {"district": "鑽石山", "region": "Kowloon", "count": 3, "price_mean": 18300.0, "price_median": 15000.0, "price_min": 14900.0, "price_max": 25000.0, "size_mean": 424.3, "price_per_sqft_mean": 43.4}, {"district": "長沙灣", "region": "Kowloon", "count": 138, "price_mean": 23808.7, "price_median": 18000.0, "price_min": 4200.0, "price_max": 140000.0, "size_mean": 406.9, "price_per_sqft_mean": 56.2}, {"district": "青衣", "region": "New Territories", "count": 107, "price_mean": 18223.6, "price_median": 16500.0, "price_min": 7600.0, "price_max": 35000.0, "size_mean": 456.8, "price_per_sqft_mean": 40.0}, {"district": "香港仔", "region": "Hong Kong Island", "count": 3, "price_mean": 12966.7, "price_median": 15500.0, "price_min": 2600.0, "price_max": 20800.0, "size_mean": 327.7, "price_per_sqft_mean": 40.4}, {"district": "馬灣", "region": "New Territories", "count": 46, "price_mean": 25191.3, "price_median": 21000.0, "price_min": 13500.0, "price_max": 60000.0, "size_mean": 724.2, "price_per_sqft_mean": 34.3}, {"district": "馬鞍山", "region": "New Territories", "count": 31, "price_mean": 22577.4, "price_median": 20000.0, "price_min": 4200.0, "price_max": 48000.0, "size_mean": 558.6, "price_per_sqft_mean": 42.6}, {"district": "鰂魚涌", "region": "Hong Kong Island", "count": 74, "price_mean": 19726.6, "price_median": 18800.0, "price_min": 6600.0, "price_max": 55000.0, "size_mean": 411.3, "price_per_sqft_mean": 50.8}, {"district": "鴨脷洲", "region": "Hong Kong Island", "count": 3, "price_mean": 23366.7, "price_median": 25800.0, "price_min": 16800.0, "price_max": 27500.0, "size_mean": 534.0, "price_per_sqft_mean": 43.5}, {"district": "黃埔", "region": "Kowloon", "count": 14, "price_mean": 23307.1, "price_median": 21600.0, "price_min": 7000.0, "price_max": 35800.0, "size_mean": 543.1, "price_per_sqft_mean": 45.7}, {"district": "黃大仙", "region": "Kowloon", "count": 11, "price_mean": 15972.6, "price_median": 13300.0, "price_min": 2400.0, "price_max": 38000.0, "size_mean": 333.8, "price_per_sqft_mean": 52.3}, {"district": "黃竹坑", "region": "Hong Kong Island", "count": 15, "price_mean": 48560.0, "price_median": 42000.0, "price_min": 23800.0, "price_max": 125000.0, "size_mean": 788.5, "price_per_sqft_mean": 61.1}], "layout_distribution": {"2 Bedrooms": 1411, "1 Bedroom": 882, "3 Bedrooms": 760, "Unknown": 705, "Open Studio": 494, "4 Bedrooms": 203}, "floor_distribution": {"中層": 1718, "高層": 1350, "低層": 999, "全層": 45, "獨立屋 全幢": 39, "1室": 14, "地下": 14, "半層 地下": 11, "B室": 10, "獨立屋": 9, "全層 地下": 9, "A室": 9, "全層 全幢": 6, "獨立屋 地下": 5, "Low": 5, "1室 全幢": 4, "4室": 4, "Wanchai": 3, "2室": 3, "J室": 3, "1室 地下": 3, "Mid": 3, "C室": 3, "7室": 3, "11室": 3, "3室": 3, "2/F": 3, "9室": 2, "5室": 2, "2A室": 2, "Whole Floor": 2, "10室": 2, "3/F": 2, "半層": 2, "3/F B室": 2, "新蒲崗": 2, "H-20座 (富興苑) 地下  H室": 2, "1/F": 2, "獨立屋 洋房2 全幢": 1, "24室": 1, "01室 地下": 1, "117": 1, "4A室": 1, "30A": 1, "266": 1, "第一期 第5B座 地下 A3室": 1, "108-110": 1, "5A室": 1, "1-11樓": 1, "P室": 1, "Floor": 1, "11A": 1, "第4街 地下": 1, "分層單位 11座(青玥琳) 全幢 11A": 1, "STAR STUDIOS II | 6B": 1, "2F室": 1, "山庭(洋房) 洋房H39 全幢": 1, "10號室": 1, "N/A": 1, "703室": 1, "2座 地下  C室": 1, "43室": 1, "165 D9 地下": 1, "1期 5B座 地下  3室": 1, "第2期(水藍天) 洋房81 全幢": 1, "第6座 地下 C室": 1, "1-3樓 A": 1, "3樓A室": 1, "1樓D室": 1, "11C": 1, "6室": 1, "502": 1, "805": 1, "一层 地下": 1, "204": 1, "15室": 1, "58室 全幢": 1, "地下連入車花園": 1, "A1室 地下": 1, "滿庭 6座 地下": 1, "小全幢": 1, "好景街8號": 1, "108": 1, "2/F No.34": 1, "157 Shan Ha Tsuen, P": 1, "四樓B室": 1, "4室 地下": 1, "N/A 地下": 1, "4F室": 1, "H1 號屋 全幢": 1, "49室": 1, "157": 1, "123": 1, "4樓A": 1, "Ab室": 1, "Mee Lun House": 1, "5 F，": 1, "11/F Front Portion": 1, "爵禄街70号": 1, "15A": 1, "43號2樓+3樓天台": 1, "3/F A室": 1, "76號": 1, "3室 地下": 1, "錦上路站旁": 1, "2B室": 1, "複式C座 全幢 20室": 1, "洋房 全幢": 1, "88室": 1, "地下單位": 1, "正常": 1, "1B室": 1, "Studio": 1, "單位": 1, "D室": 1, "5A2": 1, "310 地下": 1, "海防道48號": 1, "6号 地下": 1, "I 低座 16座 地下": 1, "湖景道 全幢": 1, "3A座": 1, "A室 全幢": 1, "地下連花園 (不入車)": 1, "第2座 地下 B室": 1, "7E室": 1, "452": 1, "98室": 1, "全": 1, "屋苑 第2座 地下": 1, "村屋 地下": 1, "1座 地下  A室": 1, "67室": 1, "第6座 地下": 1, "11室 地下": 1, "灣仔": 1, "中環": 1, "香港中環結志街33號": 1, "尖沙咀": 1, "7A室": 1, "A3室": 1, "83C": 1, "全幢": 1, "5/F": 1, "3樓": 1, "錦田市中心小全幢": 1, "G室": 1, "310": 1, "474": 1, "129": 1, "翠樺道 全幢": 1, "1A座D室": 1, "洋房 洋房83 全幢": 1, "1/F 地下": 1, "T5A": 1, "全幢物業": 1, "8-30/F 全幢": 1, "6B室": 1, "1期": 1, "香港仔": 1, "銅鑼灣": 1, "13室": 1, "3A室": 1, "5-26": 1, "第3期 8座 地下 B3室": 1, "8室": 1, "K室": 1, "中": 1}};
+
+function switchSection(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+  setTimeout(() => {
+    if (id === 'overview') {
+      ['boxChart','ppsChart','layoutChart'].forEach(c => {
+        const ch = echarts.getInstanceByDom(document.getElementById(c));
+        if (ch) ch.resize();
+        else { if (c==='boxChart') updateBoxChart(); if (c==='ppsChart') updatePpsChart(); if (c==='layoutChart') updateLayoutChart(); }
+      });
+    }
+    if (id === 'price') {
+      const ch = echarts.getInstanceByDom(document.getElementById('districtChart'));
+      if (ch) ch.resize(); else updateDistrictChart();
+    }
+    if (id === 'layout') {
+      ['layoutChart2','floorChart'].forEach(c => {
+        const ch = echarts.getInstanceByDom(document.getElementById(c));
+        if (ch) ch.resize(); else { if (c==='layoutChart2') updateLayoutChart2(); if (c==='floorChart') updateFloorChart(); }
+      });
+    }
+    if (id === 'data') renderTable();
+  }, 100);
+}
+
+function updateBoxChart() {
+  const r = ['Hong Kong Island','Kowloon','New Territories'];
+  const ch = echarts.init(document.getElementById('boxChart'));
+  ch.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: 80, right: 20, top: 20, bottom: 30 },
+    xAxis: { type: 'category', data: r },
+    yAxis: { type: 'value', axisLabel: { formatter: '${value}' } },
+    series: [
+      { name: 'Min', type: 'bar', stack: 'p', data: r.map(x=>DATA.region_summary[x].price.min), itemStyle: { color: 'transparent' } },
+      { name: 'Mid Range', type: 'bar', stack: 'p', data: r.map(x=>DATA.region_summary[x].price.median-DATA.region_summary[x].price.min), itemStyle: { borderRadius: [4,4,0,0] }, color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#93c5fd'},{offset:1,color:'#3b82f6'}]) },
+      { name: 'Upper Range', type: 'bar', stack: 'p', data: r.map(x=>DATA.region_summary[x].price.max-DATA.region_summary[x].price.median), itemStyle: { borderRadius: [4,4,0,0] }, color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#f9a8d4'},{offset:1,color:'#ec4899'}]) },
+    ]
+  });
+  window.addEventListener('resize',()=>ch.resize());
+}
+
+function updatePpsChart() {
+  const r = ['Hong Kong Island','Kowloon','New Territories'];
+  const ch = echarts.init(document.getElementById('ppsChart'));
+  ch.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: 80, right: 20, top: 20, bottom: 30 },
+    xAxis: { type: 'category', data: r },
+    yAxis: { type: 'value', axisLabel: { formatter: '${value}' } },
+    series: [{ type: 'bar', data: r.map(x=>DATA.region_summary[x].price_per_sqft.median), barWidth: '40%', itemStyle: { borderRadius: [6,6,0,0], color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#34d399'},{offset:1,color:'#059669'}]) }, label: { show: true, position: 'top', formatter: '${c}' } }]
+  });
+  window.addEventListener('resize',()=>ch.resize());
+}
+
+function updateLayoutChart() {
+  const ch = echarts.init(document.getElementById('layoutChart'));
+  const d = Object.entries(DATA.layout_distribution).slice(0,6).map(([k,v])=>({name:k,value:v}));
+  ch.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    series: [{ type: 'pie', radius: ['30%','60%'], center: ['50%','50%'], data: d, label: { formatter: '{b}\n{d}%', fontSize: 11 } }]
+  });
+  window.addEventListener('resize',()=>ch.resize());
+}
+
+function updateLayoutChart2() {
+  const ch = echarts.init(document.getElementById('layoutChart2'));
+  const d = Object.entries(DATA.layout_distribution).slice(0,6).map(([k,v])=>({name:k,value:v}));
+  ch.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    series: [{ type: 'pie', radius: ['30%','65%'], center: ['50%','50%'], data: d, label: { formatter: '{b}\n{d}%', fontSize: 12 } }]
+  });
+  window.addEventListener('resize',()=>ch.resize());
+}
+
+function updateFloorChart() {
+  const r = ['Hong Kong Island','Kowloon','New Territories'];
+  const ch = echarts.init(document.getElementById('floorChart'));
+  ch.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: r, bottom: 0 },
+    grid: { left: 80, right: 20, top: 20, bottom: 50 },
+    xAxis: { type: 'category', data: ['Low','Mid','High'] },
+    yAxis: { type: 'value', axisLabel: { formatter: '${value}' } },
+    series: r.map(x=>({ name: x, type: 'line', smooth: true, data: [DATA.region_summary[x].price.median*0.85, DATA.region_summary[x].price.median, DATA.region_summary[x].price.median*1.12], symbol: 'circle', symbolSize: 8, lineStyle: { width: 3 } }))
+  });
+  window.addEventListener('resize',()=>ch.resize());
+}
+
+function updateDistrictChart() {
+  const region = document.getElementById('regionFilter').value;
+  const sortBy = document.getElementById('sortFilter').value;
+  let d = DATA.district_summary.filter(x => region==='All' || x.region===region);
+  d.sort((a,b) => sortBy==='median' ? a.price_median-b.price_median : a.price_per_sqft_mean-b.price_per_sqft_mean);
+  d = d.slice(0,25);
+  const ch = echarts.init(document.getElementById('districtChart'));
+  ch.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 120, right: 30, top: 15, bottom: 50 },
+    xAxis: { type: 'value', axisLabel: { formatter: '${value}', fontSize: 12, fontWeight: 'bold' } },
+    yAxis: { type: 'category', data: d.map(x=>x.district).reverse(), axisLabel: { fontSize: 12, fontWeight: 'bold' } },
+    series: [{ name: 'Median Rent', type: 'bar', data: d.map(x=>x.price_median).reverse(), itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#3b82f6'},{offset:1,color:'#1d4ed8'}]) } }]
+  });
+  window.addEventListener('resize',()=>ch.resize());
+}
+
+function renderTable() {
+  let h = '<table><thead><tr><th onclick="sortTable(0)">District</th><th onclick="sortTable(1)">Region</th><th onclick="sortTable(2)">Count</th><th onclick="sortTable(3)">Median Rent</th><th onclick="sortTable(4)">Price/sqft</th><th onclick="sortTable(5)">Avg Size</th></tr></thead><tbody>';
+  DATA.district_summary.forEach(d => {
+    const cls = d.region==='Hong Kong Island' ? 'region-hk' : d.region==='Kowloon' ? 'region-kl' : 'region-nt';
+    h += '<tr><td>'+d.district+'</td><td><span class="region-badge '+cls+'">'+d.region+'</span></td><td>'+d.count+'</td><td>$'+d.price_median.toLocaleString()+'</td><td>$'+d.price_per_sqft_mean+'</td><td>'+d.size_mean.toFixed(0)+' sqft</td></tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('tableContainer').innerHTML = h;
+}
+
+let sortAsc=true, sortCol=0;
+function sortTable(col) {
+  if (col===sortCol) sortAsc=!sortAsc; else { sortCol=col; sortAsc=true; }
+  const tbody = document.querySelector('#tableContainer tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort((a,b) => {
+    let va = a.cells[col].textContent.replace(/[$,]/g,''), vb = b.cells[col].textContent.replace(/[$,]/g,'');
+    va = isNaN(va) ? va : parseFloat(va); vb = isNaN(vb) ? vb : parseFloat(vb);
+    return va < vb ? (sortAsc?-1:1) : va > vb ? (sortAsc?1:-1) : 0;
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateBoxChart(); updatePpsChart(); updateLayoutChart();
+  updateDistrictChart(); updateLayoutChart2(); updateFloorChart();
+  renderTable();
+});
+</script>
+
+</body>
+</html>
